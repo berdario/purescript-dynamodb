@@ -1,30 +1,34 @@
 module AWS.Dynamo
     ( invoke
     , DYNAMO
+    , StreamPayload(..)
+    , StreamEvent(..)
+    , DynamoDBRecord(..)
     , PutParams
     , put
     , QueryParams
     , defaultQuery
-    , QueryResult
+    , QueryResult(..)
     , query
     , module AWS.Dynamo.Internal
     )
 where
 
 import Prelude
+import AWS.Dynamo.Internal
+import AWS.Dynamo.Classes (class DynamoDecode, dynamoRead)
 import Control.Monad.Aff (Aff, makeAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (Error, error)
 import Control.Monad.Except (runExcept, withExcept)
-import Data.Maybe (Maybe(..), maybe)
 import Data.Either (Either, either)
 import Data.Foreign (Foreign, writeObject)
 import Data.Foreign.Class (class AsForeign, class IsForeign, read, write, writeProp, readProp)
+import Data.Foreign.Generic (defaultOptions, readGeneric)
 import Data.Foreign.Undefined (Undefined)
-import Data.List.NonEmpty (NonEmptyList)
 import Data.Function.Uncurried (Fn4, runFn4)
-
-import AWS.Dynamo.Internal
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe(..), maybe)
 
 foreign import data DYNAMO :: !
 
@@ -50,6 +54,48 @@ invoke :: forall a b eff. (AsForeign a, IsForeign b) => String -> a -> Dynaff ef
 invoke methodName = makeAff <<< invoke' methodName
 
 
+newtype DynamoDBRecord a = DynamoDBRecord
+    { creationTimeStamp :: Number
+    , keys :: Foreign
+    , newImage :: a
+    , sequenceNumber :: String
+    , sizeBytes :: Int
+    }
+
+
+instance dynamoDbRecordIsForeign :: (Generic a rep, DynamoDecode rep) => IsForeign (DynamoDBRecord a) where
+    read value = do
+        creationTimeStamp <- readProp "ApproximateCreationDateTime" value
+        keys <- readProp "Keys" value
+        newImage <- dynamoRead =<< readProp "NewImage" value
+        sequenceNumber <- readProp "SequenceNumber" value
+        sizeBytes <- readProp "SizeBytes" value
+        pure $ DynamoDBRecord
+            { creationTimeStamp
+            , keys
+            , newImage
+            , sequenceNumber
+            , sizeBytes
+            }
+
+newtype StreamEvent a = StreamEvent
+    { eventID :: String
+    , eventName :: String -- INSERT
+    , eventVersion :: String
+    , eventSource :: String -- aws:dynamodb
+    , awsRegion :: String -- us-west-2
+    , dynamodb :: DynamoDBRecord a
+    , eventSourceARN :: String
+    }
+derive instance genericStreamEvent :: Generic (StreamEvent a) _
+
+instance isForeignStreamEvent :: (Generic a rep, DynamoDecode rep) => IsForeign (StreamEvent a) where
+    read = readGeneric defaultOptions{unwrapSingleConstructors=true}
+
+newtype StreamPayload a = StreamPayload (Array (StreamEvent a))
+
+instance streamPayloadIsForeign :: (Generic a rep, DynamoDecode rep) => IsForeign (StreamPayload a) where
+    read value = StreamPayload <$> readProp "Records" value
 
 type PutParams a =
     { tablename :: Tablename a
@@ -75,7 +121,7 @@ type QueryParams a hk sk =
     , order :: Order
     , keyCondition :: KeyExpr a hk sk
     , attrVals :: { keyAttr:: AttrVal a hk
-                  , sortAttrs :: Array (AttrVal a sk) }
+                  , sortAttr :: Maybe (AttrVal a sk) }
     -- TODO add ProjectionExpression, ConsistentRead, FilterExpression, ExclusiveStartKey, ReturnConsumedCapacity, ExpressionAttributeNames
     }
 
@@ -85,7 +131,7 @@ defaultQuery table keyValue =
     , limit : Nothing
     , order : Ascending
     , keyCondition : KeyEq table.hashkey keyAttr Nothing
-    , attrVals : {keyAttr, sortAttrs : []}
+    , attrVals : {keyAttr, sortAttr : Nothing}
     }
     where
         keyAttr = hashAttr table.hashkey keyValue

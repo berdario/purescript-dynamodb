@@ -10,9 +10,11 @@
     "purescript-prelude": "^2.0.0",
     "purescript-console": "^2.0.0",
     "purescript-aff": "^2.0.3",
-    "purescript-foreign": "^3.2.0"
+    "purescript-foreign-generic": "^3.0.0"
   },
   "devDependencies": {
-    "purescript-psci-support": "^2.0.0"
+    "purescript-test-unit": "^10.1.0",
+    "purescript-psci-support": "^2.0.0",
+    "purescript-debug": "^2.0.0"
   }
 }

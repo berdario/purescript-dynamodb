@@ -20,8 +20,9 @@ where
 
 import Prelude
 import Control.Monad.Except (runExcept, withExcept)
+import Data.Array (fromFoldable)
 import Data.Either (Either)
-import Data.Foreign (F, MultipleErrors, renderForeignError, Foreign, writeObject)
+import Data.Foreign (F, MultipleErrors, renderForeignError, Foreign, writeObject, Prop)
 import Data.Foreign.Class (class AsForeign, writeProp, write)
 import Data.List.NonEmpty (toUnfoldable)
 import Data.Maybe (maybe, Maybe)
@@ -115,8 +116,9 @@ compileSubCondition (BinCond binaryOp (SortKey skey) (AttrVal {name}))
 attrValsToForeign :: forall a hk sk
                    . (AsForeign hk, AsForeign sk)
                   => { keyAttr:: AttrVal a hk
-                     , sortAttrs :: Array (AttrVal a sk) } -> Foreign
-attrValsToForeign {keyAttr: AttrVal key, sortAttrs}
-    = writeObject $ [ writeProp (":" <> key.name) key.value] <> sortProps
+                     , sortAttr :: Maybe (AttrVal a sk) } -> Foreign
+attrValsToForeign {keyAttr: AttrVal key, sortAttr: sort}
+    = writeObject $ [ writeProp (":" <> key.name) key.value] <> sortProp
         where
-            sortProps = map (\(AttrVal {name, value}) -> writeProp (":" <> name) value) sortAttrs
+            sortProp :: Array Prop
+            sortProp = fromFoldable $ map (\(AttrVal {name, value}) -> writeProp (":" <> name) value) sort
