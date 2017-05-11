@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "name": "purescript-dynamodb",
+  "scripts": {
+    "postinstall": "bower install"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "bower": "*",
+    "pulp": "^10.0.0",
+    "purescript": "^0.10.5",
+    "aws-sdk": "^2.49.0"
+  }
+}

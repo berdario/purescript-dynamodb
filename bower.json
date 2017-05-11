@@ -1,5 +1,10 @@
 {
   "name": "purescript-dynamodb",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/berdario/purescript-dynamodb.git"
+  },
   "ignore": [
     "**/.*",
     "node_modules",
