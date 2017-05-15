@@ -16,7 +16,7 @@ where
 
 import Prelude
 import AWS.Dynamo.Internal
-import AWS.Dynamo.Classes (class DynamoDecode, dynamoRead)
+import AWS.Dynamo.Classes (dynamoRead, class FromDynamo)
 import Control.Monad.Aff (Aff, makeAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (Error, error)
@@ -63,7 +63,7 @@ newtype DynamoDBRecord a = DynamoDBRecord
     }
 
 
-instance dynamoDbRecordIsForeign :: (Generic a rep, DynamoDecode rep) => IsForeign (DynamoDBRecord a) where
+instance dynamoDbRecordIsForeign :: (FromDynamo a) => IsForeign (DynamoDBRecord a) where
     read value = do
         creationTimeStamp <- readProp "ApproximateCreationDateTime" value
         keys <- readProp "Keys" value
@@ -89,12 +89,12 @@ newtype StreamEvent a = StreamEvent
     }
 derive instance genericStreamEvent :: Generic (StreamEvent a) _
 
-instance isForeignStreamEvent :: (Generic a rep, DynamoDecode rep) => IsForeign (StreamEvent a) where
+instance isForeignStreamEvent :: (FromDynamo a) => IsForeign (StreamEvent a) where
     read = readGeneric defaultOptions{unwrapSingleConstructors=true}
 
 newtype StreamPayload a = StreamPayload (Array (StreamEvent a))
 
-instance streamPayloadIsForeign :: (Generic a rep, DynamoDecode rep) => IsForeign (StreamPayload a) where
+instance streamPayloadIsForeign :: (FromDynamo a) => IsForeign (StreamPayload a) where
     read value = StreamPayload <$> readProp "Records" value
 
 type PutParams a =

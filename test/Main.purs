@@ -2,6 +2,7 @@ module Test.Main where
 
 import Prelude
 import AWS.Dynamo (StreamPayload)
+import AWS.Dynamo.Classes (class FromDynamo, dynamoReadGeneric)
 import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
@@ -23,6 +24,9 @@ newtype TestRecord = TestRecord
   , user :: String
   }
 derive instance genericTestRecord :: Generic TestRecord _
+
+instance fromDynamoTestRecord :: FromDynamo TestRecord where
+    dynamoRead = dynamoReadGeneric
 
 payload :: String
 payload = """

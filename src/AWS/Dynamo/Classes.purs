@@ -8,32 +8,36 @@ import Data.Either (Either(..))
 import Data.Foreign (F, Foreign, ForeignError(..), fail, readArray, readString)
 import Data.Foreign.Class (class IsForeign, read, readProp, readJSON)
 import Data.Foreign.Generic.Classes (class GenericCountArgs, countArgs)
-import Data.Foreign.Index (class Index)
 import Data.Generic.Rep (class Generic, Argument(..), Constructor(..), NoArguments(..), Field(..), Product(..), Rec(..), Sum(..), to)
 import Data.List (List(..), (:), fromFoldable, null, singleton)
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Type.Proxy (Proxy(..))
 
-class IsForeign a <= DynamoAttribute a where
+class FromDynamo a <= DynamoAttribute a where
     dynamoType :: (Proxy a) -> String
-    readAttr :: Foreign -> F a
+
+
+instance fromDynamoString :: FromDynamo String where
+    dynamoRead = readString
 
 instance dynamoAttrString :: DynamoAttribute String where
     dynamoType _ = "S"
-    readAttr = readString
+
+instance fromDynamoNumber :: FromDynamo Number where
+    dynamoRead = readJSON <=< readString
 
 instance dynamoAttrNumber :: DynamoAttribute Number where
     dynamoType _ = "N"
-    readAttr = readJSON <=< readString
+
+instance fromDynamoInt :: FromDynamo Int where
+    dynamoRead = readJSON <=< readString
 
 instance dynamoAttrInt :: DynamoAttribute Int where
     dynamoType _ = "N"
-    readAttr = readJSON <=< readString
 
-readDynamoProp :: forall a i.
-                ( DynamoAttribute a, Index i
-                ) => i -> Foreign -> F a
-readDynamoProp i = readAttr <=< readProp (dynamoType (Proxy :: Proxy a)) <=< readProp i
+readDynamoProp :: forall a. (DynamoAttribute a) => Foreign -> F a
+readDynamoProp = dynamoRead <=< readProp (dynamoType (Proxy :: Proxy a))
+
 
 class DynamoDecode a where
     decode :: Foreign -> F a
@@ -108,7 +112,7 @@ instance dynamoDecodeFieldsField
   decodeFields x = do
     let name = reflectSymbol (SProxy :: SProxy name)
     -- If `name` field doesn't exist, then `y` will be `undefined`.
-    Field <$> readDynamoProp name x
+    Field <$> (readDynamoProp =<< readProp name x)
 
 instance dynamoDecodeFieldsProduct
   :: (DynamoDecodeFields a, DynamoDecodeFields b)
@@ -117,6 +121,8 @@ instance dynamoDecodeFieldsProduct
 
 
 
-dynamoRead :: forall a rep. (Generic a rep, DynamoDecode rep) => Foreign -> F a
-dynamoRead = map to <<< decode
+dynamoReadGeneric :: forall a rep. (Generic a rep, DynamoDecode rep) => Foreign -> F a
+dynamoReadGeneric = map to <<< decode
 
+class FromDynamo a where
+  dynamoRead :: Foreign -> F a
