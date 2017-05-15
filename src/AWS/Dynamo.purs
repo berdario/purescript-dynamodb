@@ -10,6 +10,7 @@ module AWS.Dynamo
     , defaultQuery
     , QueryResult(..)
     , query
+    , Dynaff
     , module AWS.Dynamo.Internal
     )
 where
