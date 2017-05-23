@@ -152,7 +152,7 @@ data QueryResult a = QueryResult
     { items :: Array a
     , count :: Int
     , scannedCount :: Int
-    , lastEvaluatedKey :: Undefined a
+    , lastEvaluatedKey :: Undefined Foreign
     }
 
 instance queryResultIsForeign :: (IsForeign a) => IsForeign (QueryResult a) where
